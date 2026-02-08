@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="ko">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,392 +7,162 @@
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
     <style>
-        /* CSS 스타일은 동일하게 유지 */
-        :root {
-            --bg-color: #0d0d0d;
-            --card-bg: #1a1a1a;
-            --terminal-green: #39ff14;
-            --terminal-amber: #ffb000;
-            --terminal-cyan: #00eaff;
-            --terminal-red: #ff3333;
-            --inactive-bit: #333;
-            --text: #e0e0e0;
+        /* --- 스타일 (디자인) --- */
+        :root { --bg-color: #0d0d0d; --card-bg: #1a1a1a; --terminal-green: #39ff14; --terminal-amber: #ffb000; --terminal-cyan: #00eaff; --terminal-red: #ff3333; --inactive-bit: #333; --text: #e0e0e0; }
+        html, body { height: 100%; overflow: hidden; overscroll-behavior: none; }
+        body { font-family: 'VT323', monospace; background-color: var(--bg-color); color: var(--text); display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 0; background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06)); background-size: 100% 2px, 3px 100%; -webkit-user-select: none; user-select: none; touch-action: none; }
+        
+        #game-container { 
+            text-align: center; background: var(--card-bg); padding: 1.5rem; border: 4px solid var(--inactive-bit); 
+            box-shadow: 0 0 20px rgba(57, 255, 20, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.8); 
+            width: 400px; max-width: 95vw; /* 폭을 조금 더 유연하게 */
+            touch-action: manipulation; transition: border-color 0.1s; display: flex; flex-direction: column; align-items: center; 
+            max-height: 98vh; /* 높이 제한을 조금 더 풂 */
+            overflow-y: auto; position: relative; 
+        }
+        #game-container::-webkit-scrollbar { width: 8px; } #game-container::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; } #game-container::-webkit-scrollbar-track { background: transparent; }
+        
+        @keyframes shake { 0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); border-color: var(--terminal-red); color: var(--terminal-red); } 30% { transform: translate(3px, 2px) rotate(0deg); border-color: var(--terminal-red); } 50% { transform: translate(-1px, 2px) rotate(-1deg); border-color: var(--terminal-red); } 70% { transform: translate(3px, 1px) rotate(-1deg); border-color: var(--terminal-red); } 100% { transform: translate(1px, -2px) rotate(0deg); } }
+        .error-shake { animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both; }
+        
+        h1 { color: var(--terminal-green); text-shadow: 0 0 10px var(--terminal-green); font-size: 2.2rem; margin: 0 0 10px 0; letter-spacing: 2px; line-height: 1; }
+        
+        #level-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; width: 100%; margin-top: 10px; }
+        .level-btn { background: transparent; border: 2px solid var(--terminal-green); color: var(--terminal-green); font-family: 'VT323', monospace; padding: 8px; cursor: pointer; text-align: left; transition: all 0.2s; position: relative; box-shadow: 0 0 5px var(--terminal-green); }
+        .level-btn:active { transform: scale(0.96); } .level-title { font-size: 1.3rem; font-weight: bold; display: block; } .level-desc { font-size: 0.8rem; color: #888; display: block; margin-top: 3px; }
+        .level-btn.full-width { grid-column: span 2; text-align: center; border-color: var(--terminal-cyan); color: var(--terminal-cyan); box-shadow: 0 0 5px var(--terminal-cyan); }
+        .level-btn.hard-mode { grid-column: span 2; text-align: center; border-color: var(--terminal-amber); color: var(--terminal-amber); box-shadow: 0 0 5px var(--terminal-amber); margin-top: 5px; }
+        .level-btn.ranking-mode { grid-column: span 2; text-align: center; border-color: #eee; color: #eee; box-shadow: 0 0 5px #eee; margin-top: 15px; }
+        .locked { opacity: 0.5; border-style: dashed; cursor: not-allowed; }
+        
+        #hex-display { font-size: 5rem; font-weight: bold; margin: 5px 0; color: var(--terminal-amber); text-shadow: 0 0 15px var(--terminal-amber); letter-spacing: 5px; }
+        .stats { display: flex; justify-content: space-between; width: 100%; margin-bottom: 10px; font-size: 1.5rem; color: var(--terminal-green); }
+        
+        /* --- 비트 버튼 그리드 스타일 --- */
+        .bit-container-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; justify-items: center; width: 100%; }
+        
+        /* [수정됨] 하드모드 전용 레이아웃: 버튼 크기를 줄이고 간격을 좁힘 */
+        .bit-container-grid.hard-mode-layout { 
+            grid-template-columns: repeat(4, 1fr) 0.2fr repeat(4, 1fr); /* 4개-공백-4개 */
+            grid-template-rows: auto; 
+            width: 100%; 
+            gap: 4px; /* 간격을 10px -> 4px로 줄임 */
         }
 
-        html,
-        body {
-            height: 100%;
-            overflow: hidden;
-            overscroll-behavior: none;
+        .bit-wrapper { display: flex; flex-direction: column; align-items: center; }
+        
+        /* 기본 버튼 크기 */
+        .bit-btn { width: 50px; height: 50px; border: 3px solid var(--inactive-bit); background: #000; cursor: pointer; transition: background-color 0.05s; box-shadow: inset 0 0 10px #000; }
+        
+        /* [추가됨] 하드모드일 때 버튼 크기를 강제로 줄임 */
+        .hard-mode-layout .bit-btn {
+            width: 38px;
+            height: 38px;
+            border-width: 2px; /* 테두리도 살짝 얇게 */
         }
 
-        body {
-            font-family: 'VT323', monospace;
-            background-color: var(--bg-color);
-            color: var(--text);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-            background-image: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            background-size: 100% 2px, 3px 100%;
-            -webkit-user-select: none;
-            user-select: none;
-            touch-action: none;
-        }
-
-        #game-container {
-            text-align: center;
-            background: var(--card-bg);
-            padding: 1.5rem;
-            border: 4px solid var(--inactive-bit);
-            box-shadow: 0 0 20px rgba(57, 255, 20, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.8);
-            width: 400px;
-            max-width: 90vw;
-            touch-action: manipulation;
-            transition: border-color 0.1s;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-height: 95vh;
-            overflow-y: auto;
-        }
-
-        #game-container::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        #game-container::-webkit-scrollbar-thumb {
-            background: #333;
-            border-radius: 4px;
-        }
-
-        #game-container::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        @keyframes shake {
-            0% {
-                transform: translate(1px, 1px) rotate(0deg);
-            }
-
-            10% {
-                transform: translate(-1px, -2px) rotate(-1deg);
-                border-color: var(--terminal-red);
-                color: var(--terminal-red);
-            }
-
-            30% {
-                transform: translate(3px, 2px) rotate(0deg);
-                border-color: var(--terminal-red);
-            }
-
-            50% {
-                transform: translate(-1px, 2px) rotate(-1deg);
-                border-color: var(--terminal-red);
-            }
-
-            70% {
-                transform: translate(3px, 1px) rotate(-1deg);
-                border-color: var(--terminal-red);
-            }
-
-            100% {
-                transform: translate(1px, -2px) rotate(0deg);
-            }
-        }
-
-        .error-shake {
-            animation: shake 0.5s cubic-bezier(.36, .07, .19, .97) both;
-        }
-
-        h1 {
-            color: var(--terminal-green);
-            text-shadow: 0 0 10px var(--terminal-green);
-            font-size: 2.2rem;
-            margin: 0 0 10px 0;
-            letter-spacing: 2px;
-            line-height: 1;
-        }
-
-        #level-menu {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            width: 100%;
-            margin-top: 10px;
-        }
-
-        .level-btn {
-            background: transparent;
-            border: 2px solid var(--terminal-green);
-            color: var(--terminal-green);
-            font-family: 'VT323', monospace;
-            padding: 8px;
-            cursor: pointer;
-            text-align: left;
-            transition: all 0.2s;
-            position: relative;
-            box-shadow: 0 0 5px var(--terminal-green);
-        }
-
-        .level-btn:active {
-            transform: scale(0.96);
-        }
-
-        .level-title {
-            font-size: 1.3rem;
-            font-weight: bold;
-            display: block;
-        }
-
-        .level-desc {
-            font-size: 0.8rem;
-            color: #888;
-            display: block;
-            margin-top: 3px;
-        }
-
-        .level-btn.full-width {
-            grid-column: span 2;
-            text-align: center;
-            border-color: var(--terminal-cyan);
-            color: var(--terminal-cyan);
-            box-shadow: 0 0 5px var(--terminal-cyan);
-        }
-
-        .level-btn.hard-mode {
-            grid-column: span 2;
-            text-align: center;
-            border-color: var(--terminal-amber);
-            color: var(--terminal-amber);
-            box-shadow: 0 0 5px var(--terminal-amber);
-            margin-top: 5px;
-        }
-
-        .locked {
-            opacity: 0.5;
-            border-style: dashed;
-            cursor: not-allowed;
-            pointer-events: none;
-        }
-
-        #hex-display {
-            font-size: 5rem;
-            font-weight: bold;
-            margin: 5px 0;
-            color: var(--terminal-amber);
-            text-shadow: 0 0 15px var(--terminal-amber);
-            letter-spacing: 5px;
-        }
-
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            margin-bottom: 10px;
-            font-size: 1.5rem;
-            color: var(--terminal-green);
-        }
-
-        .bit-container-grid {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 10px;
-            margin-bottom: 15px;
-            justify-items: center;
-            width: 100%;
-        }
-
-        .bit-container-grid.hard-mode-layout {
-            grid-template-columns: 1fr 1fr 1fr 1fr 0.3fr 1fr 1fr 1fr 1fr;
-            grid-template-rows: auto;
-            width: 100%;
-        }
-
-        .bit-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .bit-btn {
-            width: 50px;
-            height: 50px;
-            border: 3px solid var(--inactive-bit);
-            background: #000;
-            cursor: pointer;
-            transition: background-color 0.05s;
-            box-shadow: inset 0 0 10px #000;
-        }
-
-        .bit-btn.active {
-            background: var(--terminal-green) !important;
-            border-color: var(--terminal-green);
-            box-shadow: 0 0 20px var(--terminal-green);
-        }
-
-        .bit-label {
-            margin-top: 3px;
-            font-size: 0.8rem;
-            color: #888;
-        }
-
-        .submit-btn {
-            width: 100%;
-            padding: 10px;
-            font-size: 1.5rem;
-            font-family: 'VT323', monospace;
-            background: transparent;
-            color: var(--terminal-green);
-            border: 2px solid var(--terminal-green);
-            cursor: pointer;
-            text-shadow: 0 0 5px var(--terminal-green);
-            box-shadow: 0 0 5px var(--terminal-green);
-            margin-top: 10px;
-        }
-
-        .submit-btn:active {
-            transform: scale(0.98);
-        }
-
-        .rank-input-area {
-            margin: 20px 0;
-            border-top: 1px dashed #333;
-            padding-top: 15px;
-            width: 100%;
-        }
-
-        .rank-input {
-            background: #000;
-            border: 1px solid var(--terminal-green);
-            color: var(--terminal-green);
-            font-family: 'VT323', monospace;
-            font-size: 1.5rem;
-            width: 60%;
-            padding: 5px;
-            text-align: center;
-            outline: none;
-        }
-
-        .rank-list {
-            width: 100%;
-            margin-top: 15px;
-            text-align: left;
-            font-size: 1rem;
-            max-height: 150px;
-            overflow-y: auto;
-        }
-
-        .rank-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 5px 0;
-            border-bottom: 1px solid #333;
-        }
-
-        .hidden {
-            display: none !important;
-        }
+        .bit-btn.active { background: var(--terminal-green) !important; border-color: var(--terminal-green); box-shadow: 0 0 20px var(--terminal-green); }
+        .bit-label { margin-top: 3px; font-size: 0.8rem; color: #888; }
+        
+        .submit-btn { width: 100%; padding: 10px; font-size: 1.5rem; font-family: 'VT323', monospace; background: transparent; color: var(--terminal-green); border: 2px solid var(--terminal-green); cursor: pointer; text-shadow: 0 0 5px var(--terminal-green); box-shadow: 0 0 5px var(--terminal-green); margin-top: 10px; } 
+        .submit-btn:active { transform: scale(0.98); }
+        
+        .rank-input-area { margin: 20px 0; border-top: 1px dashed #333; padding-top: 15px; width: 100%; } .rank-input { background: #000; border: 1px solid var(--terminal-green); color: var(--terminal-green); font-family: 'VT323', monospace; font-size: 1.5rem; width: 60%; padding: 5px; text-align: center; outline: none; }
+        .rank-list { width: 100%; margin-top: 5px; text-align: left; font-size: 1rem; max-height: 250px; overflow-y: auto; } .rank-item { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #333; }
+        .rank-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; width: 100%; }
+        .nav-btn { background: none; border: 1px solid var(--terminal-cyan); color: var(--terminal-cyan); cursor: pointer; font-family: 'VT323'; font-size: 1.2rem; padding: 0 10px; }
+        .hidden { display: none !important; }
     </style>
 </head>
-
 <body>
     <div id="game-container">
         <h1>HEX-BIT ONLINE</h1>
+
         <div id="start-screen" style="width: 100%;">
             <p style="font-size: 1rem; margin-bottom: 10px; color:#888;">SELECT TRAINING LEVEL</p>
             <div id="level-menu">
-                <button class="level-btn" onclick="window.startGame('1-1')"><span class="level-title">LV 1-1.
-                        BASIC</span><span class="level-desc">0, 1, 2, 4, 8, F</span></button>
-                <button class="level-btn" onclick="window.startGame('1-2')"><span class="level-title">LV 1-2.
-                        INVERT</span><span class="level-desc">7, B, D, E</span></button>
-                <button class="level-btn" onclick="window.startGame('1-3')"><span class="level-title">LV 1-3.
-                        MIXED</span><span class="level-desc">3, 5, 6, 9, A, C</span></button>
-                <button class="level-btn full-width" onclick="window.startGame('1-4')"><span class="level-title">LV 1-4.
-                        MASTER</span><span class="level-desc">All Single Hex</span></button>
-                <button id="btn-hard" class="level-btn hard-mode locked" onclick="window.startGame('hard')"><span
-                        class="level-title">⚠ HARD MODE ⚠</span><span class="level-desc">LOCKED (Need LV1-4
-                        Master)</span></button>
+                <button class="level-btn" onclick="window.startGame('1-1')"><span class="level-title">LV 1-1. BASIC</span><span class="level-desc">0, 1, 2, 4, 8, F</span></button>
+                <button class="level-btn" onclick="window.startGame('1-2')"><span class="level-title">LV 1-2. INVERT</span><span class="level-desc">7, B, D, E</span></button>
+                <button class="level-btn" onclick="window.startGame('1-3')"><span class="level-title">LV 1-3. MIXED</span><span class="level-desc">3, 5, 6, 9, A, C</span></button>
+                <button class="level-btn full-width" onclick="window.startGame('1-4')"><span class="level-title">LV 1-4. MASTER</span><span class="level-desc">All Single Hex</span></button>
+                <button id="btn-hard" class="level-btn hard-mode locked" onclick="window.startGame('hard')"><span class="level-title">⚠ HARD MODE ⚠</span><span class="level-desc">LOCKED (Need LV1-4 Master)</span></button>
+                <button class="level-btn ranking-mode" onclick="window.openRankingMode()">
+                    <span class="level-title">🏆 HALL OF FAME</span><span class="level-desc">Check Global Rankings</span>
+                </button>
             </div>
         </div>
+
         <div id="game-play" class="hidden" style="width: 100%;">
             <div style="color:#666; font-size: 1.2rem;" id="level-tag">LEVEL</div>
-            <div class="stats">
-                <div>TIME: <span id="timer">30</span>s</div>
-                <div>SCORE: <span id="score">0</span></div>
-            </div>
+            <div class="stats"><div>TIME: <span id="timer">30</span>s</div><div>SCORE: <span id="score">0</span></div></div>
             <div id="hex-display">0x00</div>
             <div id="bit-container-dynamic" class="bit-container-grid"></div>
             <button class="submit-btn" onclick="window.checkAnswer()">SUBMIT DATA</button>
         </div>
+
         <div id="result-screen" class="hidden" style="width: 100%;">
             <h2 style="color:var(--terminal-green)">TRAINING FINISHED</h2>
-            <p style="font-size: 1.5rem;">FINAL SCORE: <span id="final-score"
-                    style="color:var(--terminal-amber)">0</span></p>
+            <p style="font-size: 1.5rem;">FINAL SCORE: <span id="final-score" style="color:var(--terminal-amber)">0</span></p>
             <div id="rank-display"></div>
             <div id="unlock-msg-area"></div>
             <div id="ranking-form" class="rank-input-area hidden">
                 <p style="margin:0 0 10px 0; color:#888;">ENTER AGENT NAME</p>
                 <input type="text" id="player-name" class="rank-input" maxlength="8" placeholder="AAA">
-                <button class="submit-btn" onclick="window.submitScore()"
-                    style="width: 30%; font-size: 1.2rem; display: inline-block;">SAVE</button>
-            </div>
-            <div id="ranking-board" class="hidden">
-                <p style="color: var(--terminal-cyan); margin-bottom: 5px;">--- GLOBAL LEADERBOARD (<span
-                        id="board-level-name"></span>) ---</p>
-                <div id="rank-list-container" class="rank-list">Loading...</div>
+                <button class="submit-btn" onclick="window.submitScore()" style="width: 30%; font-size: 1.2rem; display: inline-block;">SAVE</button>
             </div>
             <button class="submit-btn" onclick="location.reload()" style="margin-top:20px;">RETURN TO MENU</button>
+        </div>
+
+        <div id="ranking-view" class="hidden" style="width: 100%;">
+            <h2 style="color:var(--terminal-cyan); margin-bottom:20px;">GLOBAL RANKING</h2>
+            <div class="rank-nav">
+                <button class="nav-btn" onclick="window.changeRankLevel(-1)">◀ PREV</button>
+                <span id="rank-view-title" style="font-size:1.3rem; color:var(--terminal-amber); font-weight:bold;">HARD MODE</span>
+                <button class="nav-btn" onclick="window.changeRankLevel(1)">NEXT ▶</button>
+            </div>
+            <div id="rank-list-container-view" class="rank-list">Loading...</div>
+            <button class="submit-btn" onclick="location.reload()" style="margin-top:20px;">BACK TO MENU</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import {
-            getFirestore,
-            collection,
-            addDoc,
-            query,
-            where,
-            orderBy,
-            limit,
-            getDocs,
-            serverTimestamp,
-            updateDoc,  // 추가됨: 수정 기능
-            doc         // 추가됨: 문서 지정 기능
-        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-        // 🔥 [중요] 여기에 본인의 Firebase 설정 정보를 직접 붙여넣으세요! 🔥
-        // .env 파일 없이 Netlify 정적 배포를 하려면 이 방법이 유일합니다.
-        const firebaseConfig = {
-            apiKey: "AIzaSyAHeys0Ok10AJPqnS50po809kX76C4jMLk",
-            authDomain: "bit-master-285db.firebaseapp.com",
-            projectId: "bit-master-285db",
-            storageBucket: "bit-master-285db.firebasestorage.app",
-            messagingSenderId: "620682124332",
-            appId: "1:620682124332:web:acd38f2860625b6a578589",
-            measurementId: "G-55872VH1PD"
-        };
+        import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
-        // --- Firebase 초기화 ---
+        const firebaseConfig = {
+    apiKey: "AIzaSyAHeys0Ok10AJPqnS50po809kX76C4jMLk",
+    authDomain: "bit-master-285db.firebaseapp.com",
+    projectId: "bit-master-285db",
+    storageBucket: "bit-master-285db.firebasestorage.app",
+    messagingSenderId: "620682124332",
+    appId: "1:620682124332:web:acd38f2860625b6a578589",
+    measurementId: "G-55872VH1PD"
+  };
+
+
         let db;
         try {
             const app = initializeApp(firebaseConfig);
             db = getFirestore(app);
             console.log("Firebase Connected");
-        } catch (e) {
-            console.warn("Firebase 설정 오류. 랭킹 기능 비활성화.");
-        }
+        } catch (e) { console.warn("Firebase Config Error"); }
 
-        // --- 게임 로직 ---
+        // --- 전역 변수 ---
         const LEVELS = { '1-1': [0x0, 0x1, 0x2, 0x4, 0x8, 0xF], '1-2': [0x7, 0xB, 0xD, 0xE], '1-3': [0x3, 0x5, 0x6, 0x9, 0xA, 0xC], '1-4': Array.from({ length: 16 }, (_, i) => i) };
+        const RANK_ORDER = ['hard', '1-4', '1-3', '1-2', '1-1'];
+        let currentRankIndex = 0; 
+
         let score = 0, timeLeft = 30, currentTarget = -1, currentBits = [], gameActive = false, timerInterval, currentLevel = '1-1';
         let isHardUnlocked = localStorage.getItem('hexMasterHardUnlockedV2') === 'true';
 
         window.onload = function () { updateHardModeButton(); document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false }); };
 
+        // --- 게임 시작 (하드모드 잠금 체크 포함) ---
         window.startGame = function (level) {
+            if (level === 'hard' && !isHardUnlocked) {
+                alert("🔒 Access Denied: SCORE 22+ in LEVEL 1-4 ");
+                return;
+            }
             currentLevel = level;
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-play').classList.remove('hidden');
@@ -404,18 +173,41 @@
             timerInterval = setInterval(() => { timeLeft--; document.getElementById('timer').innerText = timeLeft; if (timeLeft <= 0) endGame(); }, 1000);
         };
 
+        window.openRankingMode = function() {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('ranking-view').classList.remove('hidden');
+            currentRankIndex = 0; updateRankView();
+        }
+
+        window.changeRankLevel = function(direction) {
+            currentRankIndex += direction;
+            if (currentRankIndex < 0) currentRankIndex = RANK_ORDER.length - 1;
+            if (currentRankIndex >= RANK_ORDER.length) currentRankIndex = 0;
+            updateRankView();
+        }
+
+        function updateRankView() {
+            const levelCode = RANK_ORDER[currentRankIndex];
+            const title = levelCode === 'hard' ? 'HARD MODE' : `LEVEL ${levelCode}`;
+            document.getElementById('rank-view-title').innerText = title;
+            fetchLeaderboard(levelCode, 'rank-list-container-view');
+        }
+
         window.checkAnswer = function () {
             if (!gameActive) return;
             let val = 0;
-            for (let i = 0; i < currentBits.length; i++) { if (currentBits[i] === 1) val += Math.pow(2, i); }
-            if (val === currentTarget) { score++; document.getElementById('score').innerText = score; nextQuestion(); }
+            for(let i=0; i<currentBits.length; i++) { if(currentBits[i] === 1) val += Math.pow(2, i); }
+            if (val === currentTarget) { score++; document.getElementById('score').innerText = score; nextQuestion(); } 
             else { const container = document.getElementById('game-container'); container.classList.remove('error-shake'); void container.offsetWidth; container.classList.add('error-shake'); setTimeout(() => resetBits(), 500); }
         };
 
         function setupBitButtons(count) {
             const container = document.getElementById('bit-container-dynamic'); container.innerHTML = ''; currentBits = new Array(count).fill(0); container.className = 'bit-container-grid';
-            if (count === 8) { container.classList.add('hard-mode-layout'); for (let i = 7; i >= 4; i--) createBitBtn(i, container); container.appendChild(document.createElement('div')); for (let i = 3; i >= 0; i--) createBitBtn(i, container); }
-            else { for (let i = count - 1; i >= 0; i--) createBitBtn(i, container); }
+            if (count === 8) { container.classList.add('hard-mode-layout'); for (let i = 7; i >= 4; i--) createBitBtn(i, container); container.appendChild(document.createElement('div')); for (let i = 3; i >= 0; i--) createBitBtn(i, container); } 
+            else { 
+                container.classList.remove('hard-mode-layout'); // 일반 모드일 땐 클래스 제거
+                for (let i = count - 1; i >= 0; i--) createBitBtn(i, container); 
+            }
         }
 
         function createBitBtn(i, container) {
@@ -429,7 +221,7 @@
         function resetBits() { currentBits.fill(0); document.querySelectorAll('.bit-btn').forEach(el => el.classList.remove('active')); }
         function nextQuestion() {
             let newTarget, pool = [];
-            if (currentLevel === 'hard') { do { newTarget = Math.floor(Math.random() * (240)) + 16; } while (newTarget === currentTarget); }
+            if (currentLevel === 'hard') { do { newTarget = Math.floor(Math.random() * (240)) + 16; } while (newTarget === currentTarget); } 
             else { pool = LEVELS[currentLevel]; do { newTarget = pool[Math.floor(Math.random() * pool.length)]; } while (newTarget === currentTarget && pool.length > 1); }
             currentTarget = newTarget;
             let hexString = currentTarget.toString(16).toUpperCase(); if (hexString.length === 1 && currentLevel === 'hard') hexString = '0' + hexString;
@@ -441,81 +233,51 @@
         function endGame() {
             gameActive = false; clearInterval(timerInterval); document.getElementById('game-container').classList.remove('error-shake');
             document.getElementById('game-play').classList.add('hidden'); document.getElementById('result-screen').classList.remove('hidden');
-            document.getElementById('final-score').innerText = score; document.getElementById('ranking-form').classList.remove('hidden'); document.getElementById('ranking-board').classList.add('hidden');
+            document.getElementById('final-score').innerText = score; document.getElementById('ranking-form').classList.remove('hidden'); 
             const unlockMsg = document.getElementById('unlock-msg-area'); unlockMsg.innerHTML = '';
             const rank = getRank(score); const rankDiv = document.getElementById('rank-display'); rankDiv.innerText = rank.name; rankDiv.style.color = rank.color;
             if (score >= 22) { confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } }); if (currentLevel === '1-4' && !isHardUnlocked) { isHardUnlocked = true; localStorage.setItem('hexMasterHardUnlockedV2', 'true'); const msg = document.createElement('p'); msg.className = 'unlock-message'; msg.innerText = ">>> SYSTEM ALERT: HARD MODE UNLOCKED <<<"; msg.style.color = "var(--terminal-red)"; msg.style.fontWeight = "bold"; unlockMsg.appendChild(msg); } }
-            fetchLeaderboard();
         }
         function getRank(s) { if (s >= 22) return { name: "MASTER 👑", color: "#ff00ff" }; if (s >= 18) return { name: "DIAMOND 💎", color: "#00eaff" }; if (s >= 14) return { name: "PLATINUM 💍", color: "#e0e0e0" }; if (s >= 10) return { name: "GOLD 🥇", color: "#ffd700" }; if (s >= 5) return { name: "SILVER 🥈", color: "#c0c0c0" }; return { name: "BRONZE 🥉", color: "#cd7f32" }; }
 
-        // --- [수정된 로직] 닉네임 중복 체크 및 최고점수 갱신 ---
-window.submitScore = async function () {
-    const nameInput = document.getElementById('player-name');
-    const name = nameInput.value.trim().toUpperCase();
+        window.submitScore = async function () {
+            const nameInput = document.getElementById('player-name'); const name = nameInput.value.trim().toUpperCase();
+            if (!name) return alert("AGENT NAME REQUIRED!"); if (!db) return alert("DB CONNECT ERROR"); nameInput.disabled = true;
+            try {
+                const q = query(collection(db, "leaderboard"), where("name", "==", name), where("level", "==", currentLevel));
+                const snapshot = await getDocs(q);
+                if (snapshot.empty) {
+                    await addDoc(collection(db, "leaderboard"), { name: name, score: score, level: currentLevel, timestamp: serverTimestamp() });
+                    alert("NEW RECORD SAVED!");
+                } else {
+                    const oldDoc = snapshot.docs[0]; const oldData = oldDoc.data();
+                    if (score > oldData.score) {
+                        await updateDoc(doc(db, "leaderboard", oldDoc.id), { score: score, timestamp: serverTimestamp() });
+                        alert(`SCORE UPDATED! (${oldData.score} -> ${score})`);
+                    } else { alert(`KEEP TRYING! (Current High: ${oldData.score})`); }
+                }
+                location.reload();
+            } catch (e) { console.error(e); alert("ERROR: " + e.message); nameInput.disabled = false; }
+        };
 
-    if (!name) return alert("AGENT NAME REQUIRED!");
-    if (!db) return alert("DB CONNECT ERROR");
-
-    // UI 잠금 (중복 클릭 방지)
-    nameInput.disabled = true;
-
-    try {
-        // 1. 먼저 같은 닉네임 + 같은 레벨의 기록이 있는지 찾습니다.
-        const q = query(
-            collection(db, "leaderboard"),
-            where("name", "==", name),
-            where("level", "==", currentLevel)
-        );
-        const snapshot = await getDocs(q);
-
-        if (snapshot.empty) {
-            // [Case A] 해당 닉네임의 기록이 없음 -> "새로 저장"
-            await addDoc(collection(db, "leaderboard"), {
-                name: name,
-                score: score,
-                level: currentLevel,
-                timestamp: serverTimestamp()
-            });
-            alert("NEW AGENT REGISTERED! (새 기록 저장됨)");
-        } else {
-            // [Case B] 이미 기록이 있음 -> "점수 비교"
-            const oldDoc = snapshot.docs[0]; // 첫 번째 발견된 문서
-            const oldData = oldDoc.data();
-            const docId = oldDoc.id;
-
-            if (score > oldData.score) {
-                // [Case B-1] 이번 점수가 더 높음 -> "덮어쓰기 (Update)"
-                const docRef = doc(db, "leaderboard", docId);
-                await updateDoc(docRef, {
-                    score: score,
-                    timestamp: serverTimestamp() // 시간도 최신으로 갱신
-                });
-                alert(`HIGH SCORE UPDATED! (기존 ${oldData.score}점 -> ${score}점 갱신)`);
-            } else {
-                // [Case B-2] 기존 점수가 더 높거나 같음 -> "저장 안 함"
-                alert(`KEEP TRYING! (현재 ${score}점 < 기존 최고기록 ${oldData.score}점)`);
-                // 저장하지 않았으므로 입력창 다시 활성화하지 않고 종료해도 됨 (또는 아래에서 처리)
-            }
-        }
-
-        // 공통 마무리
-        document.getElementById('ranking-form').classList.add('hidden');
-        fetchLeaderboard(); // 랭킹판 갱신
-
-    } catch (e) {
-        console.error("Error submitting score: ", e);
-        alert("ERROR: " + e.message);
-        nameInput.disabled = false; // 에러 났을 때만 다시 입력 가능하게 품
-    }
-};
-
-        async function fetchLeaderboard() {
+        async function fetchLeaderboard(targetLevel, containerId) {
             if (!db) return;
-            const listContainer = document.getElementById('rank-list-container'); const board = document.getElementById('ranking-board'); board.classList.remove('hidden'); document.getElementById('board-level-name').innerText = currentLevel.toUpperCase(); listContainer.innerHTML = "Fetching Data...";
-            try { const q = query(collection(db, "leaderboard"), where("level", "==", currentLevel), orderBy("score", "desc"), limit(20)); const querySnapshot = await getDocs(q); let html = ""; let rank = 1; querySnapshot.forEach((doc) => { const data = doc.data(); let medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `<span style='color:#666'>${rank}.</span>`; html += `<div class="rank-item"><span>${medal} ${data.name}</span><span>${data.score} pts</span></div>`; rank++; }); if (html === "") html = "<p style='color:#666; text-align:center;'>NO DATA YET</p>"; listContainer.innerHTML = html; } catch (e) { listContainer.innerHTML = "Error loading ranks"; }
+            const listContainer = document.getElementById(containerId);
+            listContainer.innerHTML = "Fetching Data...";
+            try { 
+                const q = query(collection(db, "leaderboard"), where("level", "==", targetLevel), orderBy("score", "desc"), limit(20)); 
+                const querySnapshot = await getDocs(q); 
+                let html = ""; let rank = 1; 
+                querySnapshot.forEach((doc) => { 
+                    const data = doc.data(); 
+                    let medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : `<span style='color:#666'>${rank}.</span>`; 
+                    html += `<div class="rank-item"><span>${medal} ${data.name}</span><span>${data.score} pts</span></div>`; 
+                    rank++; 
+                }); 
+                if (html === "") html = "<p style='color:#666; text-align:center;'>NO DATA YET</p>"; 
+                listContainer.innerHTML = html; 
+            } catch (e) { console.error(e); listContainer.innerHTML = "Error loading ranks"; }
         }
     </script>
 </body>
-
 </html>
