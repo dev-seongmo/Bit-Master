@@ -351,8 +351,19 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
-
+        import {
+            getFirestore,
+            collection,
+            addDoc,
+            query,
+            where,
+            orderBy,
+            limit,
+            getDocs,
+            serverTimestamp,
+            updateDoc,  // 추가됨: 수정 기능
+            doc         // 추가됨: 문서 지정 기능
+        } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
         // 🔥 [중요] 여기에 본인의 Firebase 설정 정보를 직접 붙여넣으세요! 🔥
         // .env 파일 없이 Netlify 정적 배포를 하려면 이 방법이 유일합니다.
         const firebaseConfig = {
@@ -438,11 +449,66 @@
         }
         function getRank(s) { if (s >= 22) return { name: "MASTER 👑", color: "#ff00ff" }; if (s >= 18) return { name: "DIAMOND 💎", color: "#00eaff" }; if (s >= 14) return { name: "PLATINUM 💍", color: "#e0e0e0" }; if (s >= 10) return { name: "GOLD 🥇", color: "#ffd700" }; if (s >= 5) return { name: "SILVER 🥈", color: "#c0c0c0" }; return { name: "BRONZE 🥉", color: "#cd7f32" }; }
 
-        window.submitScore = async function () {
-            const nameInput = document.getElementById('player-name'); const name = nameInput.value.trim().toUpperCase();
-            if (!name) return alert("AGENT NAME REQUIRED!"); if (!db) return alert("DB CONNECT ERROR"); nameInput.disabled = true;
-            try { await addDoc(collection(db, "leaderboard"), { name: name, score: score, level: currentLevel, timestamp: serverTimestamp() }); alert("SCORE UPLOADED!"); document.getElementById('ranking-form').classList.add('hidden'); fetchLeaderboard(); } catch (e) { alert("UPLOAD FAILED"); nameInput.disabled = false; }
-        };
+        // --- [수정된 로직] 닉네임 중복 체크 및 최고점수 갱신 ---
+window.submitScore = async function () {
+    const nameInput = document.getElementById('player-name');
+    const name = nameInput.value.trim().toUpperCase();
+
+    if (!name) return alert("AGENT NAME REQUIRED!");
+    if (!db) return alert("DB CONNECT ERROR");
+
+    // UI 잠금 (중복 클릭 방지)
+    nameInput.disabled = true;
+
+    try {
+        // 1. 먼저 같은 닉네임 + 같은 레벨의 기록이 있는지 찾습니다.
+        const q = query(
+            collection(db, "leaderboard"),
+            where("name", "==", name),
+            where("level", "==", currentLevel)
+        );
+        const snapshot = await getDocs(q);
+
+        if (snapshot.empty) {
+            // [Case A] 해당 닉네임의 기록이 없음 -> "새로 저장"
+            await addDoc(collection(db, "leaderboard"), {
+                name: name,
+                score: score,
+                level: currentLevel,
+                timestamp: serverTimestamp()
+            });
+            alert("NEW AGENT REGISTERED! (새 기록 저장됨)");
+        } else {
+            // [Case B] 이미 기록이 있음 -> "점수 비교"
+            const oldDoc = snapshot.docs[0]; // 첫 번째 발견된 문서
+            const oldData = oldDoc.data();
+            const docId = oldDoc.id;
+
+            if (score > oldData.score) {
+                // [Case B-1] 이번 점수가 더 높음 -> "덮어쓰기 (Update)"
+                const docRef = doc(db, "leaderboard", docId);
+                await updateDoc(docRef, {
+                    score: score,
+                    timestamp: serverTimestamp() // 시간도 최신으로 갱신
+                });
+                alert(`HIGH SCORE UPDATED! (기존 ${oldData.score}점 -> ${score}점 갱신)`);
+            } else {
+                // [Case B-2] 기존 점수가 더 높거나 같음 -> "저장 안 함"
+                alert(`KEEP TRYING! (현재 ${score}점 < 기존 최고기록 ${oldData.score}점)`);
+                // 저장하지 않았으므로 입력창 다시 활성화하지 않고 종료해도 됨 (또는 아래에서 처리)
+            }
+        }
+
+        // 공통 마무리
+        document.getElementById('ranking-form').classList.add('hidden');
+        fetchLeaderboard(); // 랭킹판 갱신
+
+    } catch (e) {
+        console.error("Error submitting score: ", e);
+        alert("ERROR: " + e.message);
+        nameInput.disabled = false; // 에러 났을 때만 다시 입력 가능하게 품
+    }
+};
 
         async function fetchLeaderboard() {
             if (!db) return;
