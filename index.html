@@ -15,9 +15,9 @@
         #game-container { 
             text-align: center; background: var(--card-bg); padding: 1.5rem; border: 4px solid var(--inactive-bit); 
             box-shadow: 0 0 20px rgba(57, 255, 20, 0.2), inset 0 0 20px rgba(0, 0, 0, 0.8); 
-            width: 400px; max-width: 95vw; /* 폭을 조금 더 유연하게 */
+            width: 400px; max-width: 95vw;
             touch-action: manipulation; transition: border-color 0.1s; display: flex; flex-direction: column; align-items: center; 
-            max-height: 98vh; /* 높이 제한을 조금 더 풂 */
+            max-height: 98vh;
             overflow-y: auto; position: relative; 
         }
         #game-container::-webkit-scrollbar { width: 8px; } #game-container::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; } #game-container::-webkit-scrollbar-track { background: transparent; }
@@ -38,27 +38,23 @@
         #hex-display { font-size: 5rem; font-weight: bold; margin: 5px 0; color: var(--terminal-amber); text-shadow: 0 0 15px var(--terminal-amber); letter-spacing: 5px; }
         .stats { display: flex; justify-content: space-between; width: 100%; margin-bottom: 10px; font-size: 1.5rem; color: var(--terminal-green); }
         
-        /* --- 비트 버튼 그리드 스타일 --- */
         .bit-container-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 15px; justify-items: center; width: 100%; }
         
-        /* [수정됨] 하드모드 전용 레이아웃: 버튼 크기를 줄이고 간격을 좁힘 */
         .bit-container-grid.hard-mode-layout { 
-            grid-template-columns: repeat(4, 1fr) 0.2fr repeat(4, 1fr); /* 4개-공백-4개 */
+            grid-template-columns: repeat(4, 1fr) 0.2fr repeat(4, 1fr); 
             grid-template-rows: auto; 
             width: 100%; 
-            gap: 4px; /* 간격을 10px -> 4px로 줄임 */
+            gap: 4px; 
         }
 
         .bit-wrapper { display: flex; flex-direction: column; align-items: center; }
         
-        /* 기본 버튼 크기 */
         .bit-btn { width: 50px; height: 50px; border: 3px solid var(--inactive-bit); background: #000; cursor: pointer; transition: background-color 0.05s; box-shadow: inset 0 0 10px #000; }
         
-        /* [추가됨] 하드모드일 때 버튼 크기를 강제로 줄임 */
         .hard-mode-layout .bit-btn {
             width: 38px;
             height: 38px;
-            border-width: 2px; /* 테두리도 살짝 얇게 */
+            border-width: 2px;
         }
 
         .bit-btn.active { background: var(--terminal-green) !important; border-color: var(--terminal-green); box-shadow: 0 0 20px var(--terminal-green); }
@@ -72,6 +68,9 @@
         .rank-nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; width: 100%; }
         .nav-btn { background: none; border: 1px solid var(--terminal-cyan); color: var(--terminal-cyan); cursor: pointer; font-family: 'VT323'; font-size: 1.2rem; padding: 0 10px; }
         .hidden { display: none !important; }
+
+        /* 키보드 힌트용 스타일 */
+        .key-hint { font-size: 0.8rem; color: #555; margin-top: 5px; text-align: center; width: 100%; }
     </style>
 </head>
 <body>
@@ -97,6 +96,9 @@
             <div class="stats"><div>TIME: <span id="timer">30</span>s</div><div>SCORE: <span id="score">0</span></div></div>
             <div id="hex-display">0x00</div>
             <div id="bit-container-dynamic" class="bit-container-grid"></div>
+            
+            <div id="key-guide" class="key-hint">KEYBOARD: [1~4] & [ENTER]</div>
+
             <button class="submit-btn" onclick="window.checkAnswer()">SUBMIT DATA</button>
         </div>
 
@@ -130,15 +132,14 @@
         import { getFirestore, collection, addDoc, query, where, orderBy, limit, getDocs, serverTimestamp, updateDoc, doc } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
 
         const firebaseConfig = {
-    apiKey: "AIzaSyAHeys0Ok10AJPqnS50po809kX76C4jMLk",
-    authDomain: "bit-master-285db.firebaseapp.com",
-    projectId: "bit-master-285db",
-    storageBucket: "bit-master-285db.firebasestorage.app",
-    messagingSenderId: "620682124332",
-    appId: "1:620682124332:web:acd38f2860625b6a578589",
-    measurementId: "G-55872VH1PD"
-  };
-
+            apiKey: "AIzaSyAHeys0Ok10AJPqnS50po809kX76C4jMLk",
+            authDomain: "bit-master-285db.firebaseapp.com",
+            projectId: "bit-master-285db",
+            storageBucket: "bit-master-285db.firebasestorage.app",
+            messagingSenderId: "620682124332",
+            appId: "1:620682124332:web:acd38f2860625b6a578589",
+            measurementId: "G-55872VH1PD"
+        };
 
         let db;
         try {
@@ -167,7 +168,17 @@
             document.getElementById('start-screen').classList.add('hidden');
             document.getElementById('game-play').classList.remove('hidden');
             document.getElementById('level-tag').innerText = level === 'hard' ? 'HARD MODE' : `LEVEL ${level}`;
+            
             const bitCount = (level === 'hard') ? 8 : 4;
+            
+            // 키보드 가이드 텍스트 업데이트
+            const keyGuide = document.getElementById('key-guide');
+            if (level === 'hard') {
+                keyGuide.innerText = "KEYBOARD: [1~8] & [ENTER/SPACE]";
+            } else {
+                keyGuide.innerText = "KEYBOARD: [1~4] & [ENTER/SPACE]";
+            }
+
             setupBitButtons(bitCount);
             score = 0; timeLeft = 30; gameActive = true; document.getElementById('score').innerText = score; currentTarget = -1; nextQuestion();
             timerInterval = setInterval(() => { timeLeft--; document.getElementById('timer').innerText = timeLeft; if (timeLeft <= 0) endGame(); }, 1000);
@@ -205,7 +216,7 @@
             const container = document.getElementById('bit-container-dynamic'); container.innerHTML = ''; currentBits = new Array(count).fill(0); container.className = 'bit-container-grid';
             if (count === 8) { container.classList.add('hard-mode-layout'); for (let i = 7; i >= 4; i--) createBitBtn(i, container); container.appendChild(document.createElement('div')); for (let i = 3; i >= 0; i--) createBitBtn(i, container); } 
             else { 
-                container.classList.remove('hard-mode-layout'); // 일반 모드일 땐 클래스 제거
+                container.classList.remove('hard-mode-layout'); 
                 for (let i = count - 1; i >= 0; i--) createBitBtn(i, container); 
             }
         }
@@ -278,6 +289,46 @@
                 listContainer.innerHTML = html; 
             } catch (e) { console.error(e); listContainer.innerHTML = "Error loading ranks"; }
         }
+
+        // ==========================================
+        // [추가됨] 키보드 입력 핸들러
+        // ==========================================
+        document.addEventListener('keydown', function(event) {
+            if (!gameActive) return;
+
+            const key = event.key;
+            
+            // Enter 또는 Space로 제출 (마우스 클릭 없이 빠른 진행 가능)
+            if (key === 'Enter' || key === ' ') {
+                event.preventDefault(); // 스페이스바 스크롤 방지
+                window.checkAnswer();
+                return;
+            }
+
+            // 숫자키 매핑
+            let bitIndex = -1;
+            const isHard = (currentLevel === 'hard');
+
+            if (isHard) {
+                // 하드모드: 키 1~8이 비트 7~0에 매핑됨 (왼쪽부터 순서대로)
+                // 1번키 -> Bit 7, 8번키 -> Bit 0
+                const num = parseInt(key);
+                if (num >= 1 && num <= 8) {
+                    bitIndex = 8 - num;
+                }
+            } else {
+                // 일반모드: 키 1~4가 비트 3~0에 매핑됨
+                // 1번키 -> Bit 3, 4번키 -> Bit 0
+                const num = parseInt(key);
+                if (num >= 1 && num <= 4) {
+                    bitIndex = 4 - num;
+                }
+            }
+
+            if (bitIndex !== -1) {
+                toggleBit(bitIndex);
+            }
+        });
     </script>
 </body>
 </html>
